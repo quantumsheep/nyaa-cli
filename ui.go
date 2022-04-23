@@ -180,20 +180,20 @@ func (ui *UI) GenerateTable() {
 			torrent := ui.torrents[row]
 
 			if ui.options.UsePeerflix {
-				ui.app.Stop()
+				ui.app.Suspend(func() {
+					cmd := exec.Command("peerflix", torrent.Link, "--vlc")
 
-				cmd := exec.Command("peerflix", torrent.Link, "--vlc")
+					if ui.options.PeerflixFullscreen {
+						cmd.Args = append(cmd.Args, "--", "--fullscreen")
+					}
 
-				if ui.options.PeerflixFullscreen {
-					cmd.Args = append(cmd.Args, "--", "--fullscreen")
-				}
-
-				cmd.Stdout = os.Stdout
-				cmd.Stderr = os.Stderr
-				err := cmd.Run()
-				if err != nil {
-					log.Fatal(err)
-				}
+					cmd.Stdout = os.Stdout
+					cmd.Stderr = os.Stderr
+					err := cmd.Run()
+					if err != nil {
+						log.Fatal(err)
+					}
+				})
 			} else {
 				res, err := http.Get(torrent.Link)
 				if err != nil {
