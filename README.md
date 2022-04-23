@@ -14,7 +14,7 @@ Each commit is built and saved as GitHub Actions artifacts. You can download the
 ## From sources
 ```bash
 git clone https://github.com/quantumsheep/nyaa-cli.git
-cd sshs
+cd nyaa-cli
 make
 make install
 ```
