@@ -85,6 +85,18 @@ func NewUI(options *UIOptions) *UI {
 
 	ui.pages.AddPage("search", flex, true, true)
 
+	err := ui.Search(nyaa.SearchOptions{
+		Provider: "nyaa",
+		Query:    ui.query,
+		Category: "anime-eng",
+		SortBy:   strings.ToLower(sortOptions[ui.sortBy]),
+		OrderBy:  strings.ToLower(orderOptions[ui.orderBy]),
+		Filter:   "no-filter",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	return ui
 }
 
@@ -115,40 +127,53 @@ func (ui *UI) GenerateSearchForm() {
 			ui.orderBy = optionIndex
 		}).
 		AddButton("Search", func() {
-			var err error
-
-			opt := nyaa.SearchOptions{
+			err := ui.Search(nyaa.SearchOptions{
 				Provider: "nyaa",
 				Query:    ui.query,
 				Category: "anime-eng",
 				SortBy:   strings.ToLower(sortOptions[ui.sortBy]),
 				OrderBy:  strings.ToLower(orderOptions[ui.orderBy]),
-				Filter:   "trusted-only",
-			}
-
-			ui.torrents, err = nyaa.Search(opt)
+				Filter:   "no-filter",
+			})
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			ui.table.Clear()
-
-			for i, torrent := range ui.torrents {
-				t, _ := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", torrent.Date)
-				date := t.Format("2006-01-02 15:04")
-
-				ui.table.SetCell(i, 0, ui.GenerateCell("○", 4, 0, tcell.ColorWhite).SetAlign(tview.AlignRight))
-				ui.table.SetCell(i, 1, ui.GenerateCell(torrent.Size, 10, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
-				ui.table.SetCell(i, 2, ui.GenerateCell(date, 0, 0, tcell.ColorGray).SetAlign(tview.AlignRight))
-				ui.table.SetCell(i, 3, ui.GenerateCell(torrent.Name, 0, 0, tcell.ColorWhite).SetExpansion(1))
-				ui.table.SetCell(i, 4, ui.GenerateCell(torrent.Seeders, 6, 0, tcell.ColorGreen).SetAlign(tview.AlignRight))
-				ui.table.SetCell(i, 5, ui.GenerateCell(torrent.Leechers, 6, 0, tcell.ColorRed).SetAlign(tview.AlignRight))
-			}
-
 			ui.app.SetFocus(ui.table)
-			ui.table.Select(0, 0)
-			ui.table.ScrollToBeginning()
 		})
+}
+
+func (ui *UI) Search(opts nyaa.SearchOptions) error {
+	torrents, err := nyaa.Search(opts)
+	if err != nil {
+		return err
+	}
+
+	ui.torrents = torrents
+	ui.table.Clear()
+
+	for i, torrent := range ui.torrents {
+		t, _ := time.Parse("Mon, 02 Jan 2006 15:04:05 -0700", torrent.Date)
+		date := t.Format("2006-01-02 15:04")
+
+		trusted := "Not Trusted"
+		if torrent.IsTrusted == "Yes" {
+			trusted = "Trusted"
+		}
+
+		ui.table.SetCell(i, 0, ui.GenerateCell("○", 4, 0, tcell.ColorWhite).SetAlign(tview.AlignRight))
+		ui.table.SetCell(i, 1, ui.GenerateCell(torrent.Size, 10, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
+		ui.table.SetCell(i, 2, ui.GenerateCell(date, 0, 0, tcell.ColorGray).SetAlign(tview.AlignRight))
+		ui.table.SetCell(i, 3, ui.GenerateCell(torrent.Name, 0, 0, tcell.ColorWhite).SetExpansion(1))
+		ui.table.SetCell(i, 4, ui.GenerateCell(trusted, 11, 0, tcell.ColorWhite).SetAlign(tview.AlignRight))
+		ui.table.SetCell(i, 5, ui.GenerateCell(torrent.Seeders, 6, 0, tcell.ColorGreen).SetAlign(tview.AlignRight))
+		ui.table.SetCell(i, 6, ui.GenerateCell(torrent.Leechers, 6, 0, tcell.ColorRed).SetAlign(tview.AlignRight))
+	}
+
+	ui.table.Select(0, 0)
+	ui.table.ScrollToBeginning()
+
+	return nil
 }
 
 func (ui *UI) GenerateCell(value string, leftPadding int, rightPadding int, color tcell.Color) *tview.TableCell {
