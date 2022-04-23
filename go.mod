@@ -4,6 +4,7 @@ go 1.18
 
 require (
 	github.com/gdamore/tcell/v2 v2.5.1
+	github.com/gocolly/colly v1.2.0
 	github.com/quantumsheep/go-nyaa/v2 v2.1.0
 	github.com/rivo/tview v0.0.0-20220307222120-9994674d60a8
 	github.com/urfave/cli/v2 v2.4.5
@@ -18,7 +19,6 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.1 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
 	github.com/gobwas/glob v0.2.3 // indirect
-	github.com/gocolly/colly v1.2.0 // indirect
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.3.1 // indirect
 	github.com/json-iterator/go v1.1.10 // indirect
