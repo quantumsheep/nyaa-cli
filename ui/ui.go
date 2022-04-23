@@ -56,9 +56,10 @@ type UI struct {
 }
 
 type UIOptions struct {
-	UsePeerflix        bool
-	PeerflixFullscreen bool
-	OutputDirectory    string
+	UsePeerflix         bool
+	PeerflixFullscreen  bool
+	PeerflixVideoPlayer string
+	OutputDirectory     string
 }
 
 func NewUI(options *UIOptions) *UI {
@@ -181,7 +182,7 @@ func (ui *UI) GenerateTable() {
 
 			if ui.options.UsePeerflix {
 				ui.app.Suspend(func() {
-					cmd := exec.Command("peerflix", torrent.Link, "--vlc")
+					cmd := exec.Command("peerflix", torrent.Link, "--"+ui.options.PeerflixVideoPlayer)
 
 					if ui.options.PeerflixFullscreen {
 						cmd.Args = append(cmd.Args, "--", "--fullscreen")
