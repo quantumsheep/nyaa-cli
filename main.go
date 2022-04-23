@@ -22,11 +22,16 @@ func main() {
 				Name:  "peerflix",
 				Usage: "run peerflix on the torrents",
 			},
+			&cli.BoolFlag{
+				Name:  "fullscreen",
+				Usage: "run peerflix in fullscreen mode",
+			},
 		},
 		Action: func(c *cli.Context) error {
 			return NewUI(&UIOptions{
-				UsePeerflix:     c.Bool("peerflix"),
-				OutputDirectory: c.String("dir"),
+				UsePeerflix:        c.Bool("peerflix"),
+				PeerflixFullscreen: c.Bool("fullscreen"),
+				OutputDirectory:    c.String("dir"),
 			}).Run()
 		},
 	}
