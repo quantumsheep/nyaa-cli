@@ -1,6 +1,8 @@
 # nyaa-cli
 Terminal user interface for nyaa.si with support of [peerflix](https://github.com/mafintosh/peerflix).
 
+Peerflix can be enabled with the `--peerflix` flag. By default the tool will only download the torrent file to the current directory (or if specified by `--dir`).
+
 https://user-images.githubusercontent.com/7271496/164914020-5dd0c1cd-30c2-4bac-b539-5a0ccfc701ef.mp4
 
 # Requirements
