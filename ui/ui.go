@@ -359,7 +359,10 @@ func nyaaTorrentFiles(viewURL string) ([]*torrentFile, error) {
 		return nil, e
 	}
 
-	c.Visit(viewURL)
+	err := c.Visit(viewURL)
+	if err != nil {
+		return nil, err
+	}
 
 	return files, nil
 }
