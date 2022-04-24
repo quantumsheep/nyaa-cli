@@ -244,14 +244,14 @@ func (ui *UI) GenerateTable() {
 							newRow := row + 1 + i
 
 							ui.table.InsertRow(newRow)
-							ui.table.SetCell(newRow, 0, ui.GenerateCell("", 8, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
-							ui.table.SetCell(newRow, 1, ui.GenerateCell("", 4, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
-							ui.table.SetCell(newRow, 2, ui.GenerateCell("", 10, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
-							ui.table.SetCell(newRow, 3, ui.GenerateCell(file.size, 16, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
-							ui.table.SetCell(newRow, 4, ui.GenerateCell("", 6, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
-							ui.table.SetCell(newRow, 5, ui.GenerateCell("", 6, 0, tcell.ColorYellow).SetAlign(tview.AlignRight))
-							ui.table.SetCell(newRow, 6, ui.GenerateCell(file.name, 0, 0, tcell.ColorWhite).SetExpansion(1))
-							ui.table.SetCell(newRow, 7, ui.GenerateCell("", 11, 0, tcell.ColorWhite).SetAlign(tview.AlignRight))
+							ui.table.SetCell(newRow, 0, ui.GenerateCell("", 8, 0, tcell.ColorWhite).SetAlign(tview.AlignLeft))
+							ui.table.SetCell(newRow, 1, ui.GenerateCell("│", 4, 0, tcell.ColorWhite))
+							ui.table.SetCell(newRow, 2, ui.GenerateCell(file.size, 10, 0, tcell.ColorYellow))
+							ui.table.SetCell(newRow, 3, ui.GenerateCell("", 17, 0, tcell.ColorYellow))
+							ui.table.SetCell(newRow, 4, ui.GenerateCell("", 6, 0, tcell.ColorYellow))
+							ui.table.SetCell(newRow, 5, ui.GenerateCell("", 6, 0, tcell.ColorYellow))
+							ui.table.SetCell(newRow, 6, ui.GenerateCell("", 2, 0, tcell.ColorYellow))
+							ui.table.SetCell(newRow, 7, ui.GenerateCell(file.name, 0, 0, tcell.ColorDimGray).SetAlign(tview.AlignLeft).SetExpansion(1))
 						}
 
 						torrent.hasExpanded = true
@@ -346,7 +346,7 @@ func nyaaTorrentFiles(viewURL string) ([]*torrentFile, error) {
 
 			files = append(files, &torrentFile{
 				name: strings.TrimSuffix(e.Text, " "+fileSize),
-				size: fileSize,
+				size: fileSize[1 : len(fileSize)-1], // remove "(" and ")"
 			})
 		}
 	})
