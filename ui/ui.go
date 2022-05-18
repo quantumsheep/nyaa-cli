@@ -65,8 +65,7 @@ type UI struct {
 
 	torrents map[string]*Torrent
 
-	engine            *engine.Engine
-	tempDataDirectory string
+	engine *engine.Engine
 }
 
 type UIOptions struct {
