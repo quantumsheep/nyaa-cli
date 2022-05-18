@@ -1,15 +1,13 @@
 package ui
 
 import (
-	"io"
+	"fmt"
 	"log"
-	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
+	"sync"
 	"time"
 	_ "unsafe"
 
@@ -17,6 +15,8 @@ import (
 	"github.com/gocolly/colly"
 	"github.com/quantumsheep/go-nyaa/v2/nyaa"
 	"github.com/quantumsheep/go-nyaa/v2/types"
+	"github.com/quantumsheep/nyaa-cli/engine"
+	"github.com/quantumsheep/nyaa-cli/utils"
 	"github.com/rivo/tview"
 )
 
@@ -61,14 +61,18 @@ type UI struct {
 
 	searchForm *tview.Form
 	table      *tview.Table
-	torrents   map[string]*Torrent
+	shortcuts  *tview.Table
+
+	torrents map[string]*Torrent
+
+	engine            *engine.Engine
+	tempDataDirectory string
 }
 
 type UIOptions struct {
-	UsePeerflix         bool
-	PeerflixFullscreen  bool
-	PeerflixVideoPlayer string
-	OutputDirectory     string
+	VideoPlayer     string
+	Fullscreen      bool
+	OutputDirectory string
 }
 
 func NewUI(options *UIOptions) *UI {
@@ -87,10 +91,12 @@ func NewUI(options *UIOptions) *UI {
 
 	ui.GenerateTable()
 	ui.GenerateSearchForm()
+	ui.GenerateShortcuts()
 
 	flex := tview.NewFlex().
 		AddItem(ui.searchForm, 5, 0, true).SetDirection(tview.FlexRow).
-		AddItem(ui.table, 0, 6, true).SetDirection(tview.FlexRow)
+		AddItem(ui.table, 0, 6, true).SetDirection(tview.FlexRow).
+		AddItem(ui.shortcuts, 1, 0, false).SetDirection(tview.FlexRow)
 
 	ui.pages.AddPage("search", flex, true, true)
 
@@ -218,116 +224,170 @@ func (ui *UI) GenerateTable() {
 		ui.app.SetFocus(ui.searchForm)
 	})
 
-	ui.table.SetSelectedFunc(func(row int, column int) {
-		if row < len(ui.torrents) {
-			id := strings.TrimSpace(ui.table.GetCell(row, 0).Text)
-			index := -1
+	ui.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		row, _ := ui.table.GetSelection()
 
-			for id == "" {
-				id = strings.TrimSpace(ui.table.GetCell(row-2-index, 0).Text)
-				index++
-			}
-
+		if event.Key() == tcell.KeyF2 {
+			id, _ := ui.GetTorrentId(row)
 			torrent := ui.torrents[id]
 
-			if ui.options.UsePeerflix {
-				if !torrent.hasExpanded {
-					files, err := nyaaTorrentFiles(torrent.GUID)
-					if err != nil {
-						ui.Fatal(err)
-					}
+			directory, err := filepath.Abs(ui.options.OutputDirectory)
+			if err != nil {
+				ui.Fatal(err)
+			}
 
-					torrent.fileCount = len(files)
+			if err := os.MkdirAll(directory, os.ModePerm); err != nil {
+				ui.Fatal(err)
+			}
 
-					if len(files) > 1 {
-						for i, file := range files {
-							newRow := row + 1 + i
+			_, err = utils.Download(torrent.Link, filepath.Join(directory, torrent.Name+".torrent"))
+			if err != nil {
+				ui.Fatal(err)
+			}
 
-							ui.table.InsertRow(newRow)
-							ui.table.SetCell(newRow, 0, ui.GenerateCell("", 8, 0, tcell.ColorWhite).SetAlign(tview.AlignLeft))
-							ui.table.SetCell(newRow, 1, ui.GenerateCell("│", 4, 0, tcell.ColorWhite))
-							ui.table.SetCell(newRow, 2, ui.GenerateCell(file.size, 10, 0, tcell.ColorYellow))
-							ui.table.SetCell(newRow, 3, ui.GenerateCell("", 17, 0, tcell.ColorYellow))
-							ui.table.SetCell(newRow, 4, ui.GenerateCell("", 6, 0, tcell.ColorYellow))
-							ui.table.SetCell(newRow, 5, ui.GenerateCell("", 6, 0, tcell.ColorYellow))
-							ui.table.SetCell(newRow, 6, ui.GenerateCell("", 2, 0, tcell.ColorYellow))
-							ui.table.SetCell(newRow, 7, ui.GenerateCell(file.name, 0, 0, tcell.ColorDimGray).SetAlign(tview.AlignLeft).SetExpansion(1))
-						}
+			ui.table.SetCell(row, 1, ui.GenerateCell("●", 4, 0, tcell.ColorGreen).SetAlign(tview.AlignRight))
 
-						torrent.hasExpanded = true
-						return
-					} else {
-						torrent.hasExpanded = true
-					}
+			return nil
+		}
+
+		return event
+	})
+
+	ui.table.SetSelectedFunc(func(row int, column int) {
+		id, index := ui.GetTorrentId(row)
+		torrent := ui.torrents[id]
+
+		if !torrent.hasExpanded {
+			files, err := nyaaTorrentFiles(torrent.GUID)
+			if err != nil {
+				ui.Fatal(err)
+			}
+
+			torrent.fileCount = len(files)
+
+			if len(files) > 1 {
+				for i, file := range files {
+					newRow := row + 1 + i
+
+					ui.table.InsertRow(newRow)
+					ui.table.SetCell(newRow, 0, ui.GenerateCell("", 8, 0, tcell.ColorWhite).SetAlign(tview.AlignLeft))
+					ui.table.SetCell(newRow, 1, ui.GenerateCell("│", 4, 0, tcell.ColorWhite))
+					ui.table.SetCell(newRow, 2, ui.GenerateCell(file.size, 10, 0, tcell.ColorYellow))
+					ui.table.SetCell(newRow, 3, ui.GenerateCell("", 17, 0, tcell.ColorYellow))
+					ui.table.SetCell(newRow, 4, ui.GenerateCell("", 6, 0, tcell.ColorYellow))
+					ui.table.SetCell(newRow, 5, ui.GenerateCell("", 6, 0, tcell.ColorYellow))
+					ui.table.SetCell(newRow, 6, ui.GenerateCell("", 2, 0, tcell.ColorYellow))
+					ui.table.SetCell(newRow, 7, ui.GenerateCell(file.name, 0, 0, tcell.ColorDimGray).SetAlign(tview.AlignLeft).SetExpansion(1))
 				}
 
-				if torrent.fileCount > 1 && index == -1 {
-					return
-				}
-
-				ui.app.Suspend(func() {
-					cmd := exec.Command("peerflix", torrent.Link, "--"+ui.options.PeerflixVideoPlayer)
-
-					if index > -1 {
-						cmd.Args = append(cmd.Args, "--index", strconv.Itoa(index))
-					}
-
-					if ui.options.PeerflixFullscreen {
-						cmd.Args = append(cmd.Args, "--", "--fullscreen")
-					}
-
-					cmd.Stdout = os.Stdout
-					cmd.Stderr = os.Stderr
-					err := cmd.Run()
-					if err != nil {
-						ui.Fatal(err)
-					}
-				})
+				torrent.hasExpanded = true
+				return
 			} else {
-				directory, err := filepath.Abs(ui.options.OutputDirectory)
-				if err != nil {
-					ui.Fatal(err)
-				}
-
-				_, err = downloadTorrent(torrent.Link, torrent.Name, directory)
-				if err != nil {
-					ui.Fatal(err)
-				}
-
-				ui.table.SetCell(row, 1, ui.GenerateCell("●", 4, 0, tcell.ColorGreen).SetAlign(tview.AlignRight))
+				torrent.hasExpanded = true
 			}
 		}
+
+		if torrent.fileCount > 1 && index == -1 {
+			return
+		}
+
+		if ui.engine == nil {
+			tempDir, err := os.MkdirTemp("", "nyaa-cli")
+			if err != nil {
+				ui.Fatal(err)
+			}
+
+			ui.engine, err = engine.NewEngine(tempDir)
+			if err != nil {
+				ui.Fatal(err)
+			}
+		}
+
+		ui.app.Suspend(func() {
+			if err := ui.engine.SetTorrentFromPath(torrent.Link); err != nil {
+				ui.Fatal(err)
+			}
+			defer ui.engine.DropCurrentTorrent()
+
+			port := "3001"
+			url := fmt.Sprintf("http://localhost:%s", port)
+
+			if index > -1 {
+				url += fmt.Sprintf("/%d", index)
+			}
+
+			wg := sync.WaitGroup{}
+			wg.Add(3)
+
+			go func() {
+				defer wg.Done()
+
+				if err := ui.engine.RunServer(port, 0); err != nil {
+					ui.Fatal(err)
+				}
+			}()
+
+			go func() {
+				defer wg.Done()
+				ui.engine.RunStatusLoop(index)
+			}()
+
+			go func() {
+				defer wg.Done()
+
+				err := utils.RunVideoPlayer(utils.VideoPlayerConfig{
+					VideoPlayer: ui.options.VideoPlayer,
+					Url:         url,
+					Name:        ui.engine.GetFileName(index),
+					OnTop:       true,
+					Fullscreen:  ui.options.Fullscreen,
+				})
+				if err != nil {
+					ui.Fatal(err)
+				}
+
+				ui.engine.StopStatusLoop()
+
+				err = ui.engine.StopServer()
+				if err != nil {
+					ui.Fatal(err)
+				}
+			}()
+
+			wg.Wait()
+		})
 	})
+}
+
+func (ui *UI) GetTorrentId(row int) (string, int) {
+	id := strings.TrimSpace(ui.table.GetCell(row, 0).Text)
+	index := -1
+
+	for id == "" {
+		id = strings.TrimSpace(ui.table.GetCell(row-2-index, 0).Text)
+		index++
+	}
+
+	return id, index
+}
+
+func (ui *UI) GenerateShortcuts() {
+	ui.shortcuts = tview.NewTable().
+		SetBorders(false).
+		SetCell(0, 0, tview.NewTableCell("F1").
+			SetTextColor(tcell.ColorWhite).
+			SetAlign(tview.AlignCenter),
+		).
+		SetCell(0, 1, tview.NewTableCell("Download").
+			SetTextColor(tcell.ColorBlack).
+			SetBackgroundColor(tcell.ColorBlue).
+			SetAlign(tview.AlignCenter),
+		)
 }
 
 func (ui *UI) Fatal(err error) {
 	ui.app.Stop()
 	log.Fatal(err)
-}
-
-func downloadTorrent(link string, name string, directory string) (string, error) {
-	res, err := http.Get(link)
-	if err != nil {
-		return "", err
-	}
-	defer res.Body.Close()
-
-	if err := os.MkdirAll(directory, os.ModePerm); err != nil {
-		return "", err
-	}
-
-	outputPath := filepath.Join(directory, name+".torrent")
-	file, err := os.Create(outputPath)
-	if err != nil {
-		return "", err
-	}
-	defer file.Close()
-
-	if _, err := io.Copy(file, res.Body); err != nil {
-		return "", err
-	}
-
-	return outputPath, nil
 }
 
 type torrentFile struct {

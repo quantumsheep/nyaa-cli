@@ -9,15 +9,6 @@ import (
 
 var allowedVideoPlayers = []string{
 	"vlc",
-	"airplay",
-	"mplayer",
-	"smplayer",
-	"mpchc",
-	"potplayer",
-	"mpv",
-	"omx",
-	"webplay",
-	"jack",
 }
 
 var RootCmd = &cli.App{
@@ -34,22 +25,17 @@ var RootCmd = &cli.App{
 			Name:  "fullscreen",
 			Usage: "run peerflix in fullscreen mode",
 		},
-		&cli.BoolFlag{
-			Name:  "peerflix",
-			Usage: "run peerflix on the torrents",
-		},
 		&cli.StringFlag{
 			Name:  "player",
-			Usage: "video player used by peerflix. available options: " + strings.Join(allowedVideoPlayers, ", "),
+			Usage: "video player to run the videos on. available options: " + strings.Join(allowedVideoPlayers, ", "),
 			Value: "vlc",
 		},
 	},
 	Action: func(c *cli.Context) error {
 		return ui.NewUI(&ui.UIOptions{
-			UsePeerflix:         c.Bool("peerflix"),
-			PeerflixFullscreen:  c.Bool("fullscreen"),
-			PeerflixVideoPlayer: c.String("player"),
-			OutputDirectory:     c.String("dir"),
+			VideoPlayer:     c.String("player"),
+			Fullscreen:      c.Bool("fullscreen"),
+			OutputDirectory: c.String("dir"),
 		}).Run()
 	},
 }
