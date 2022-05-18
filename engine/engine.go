@@ -121,7 +121,10 @@ func (e *Engine) RunServer(port string, index int) error {
 
 			headerWriter.Set("Content-Type", "application/x-mpegurl; charset=utf-8")
 			headerWriter.Set("Content-Length", fmt.Sprintf("%d", len(playlist)))
-			io.WriteString(w, playlist)
+			_, err := io.WriteString(w, playlist)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+			}
 			return
 		}
 
@@ -193,7 +196,11 @@ func (e *Engine) RunServer(port string, index int) error {
 
 		reader := file.NewReader()
 		defer reader.Close()
-		reader.Seek(rang.Start, io.SeekStart)
+		_, err = reader.Seek(rang.Start, io.SeekStart)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
 		_, _ = io.CopyN(w, reader, rang.End-rang.Start+1)
 	})
